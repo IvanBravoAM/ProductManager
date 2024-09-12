@@ -19,7 +19,16 @@ const userSchema =  new mongoose.Schema({
     role:{
         type:String,
         default: 'user'
-    }
+    },
+    resetPasswordToken: String, // Campo para almacenar el token de restablecimiento
+    resetPasswordExpires: Date,
+    documents: [
+        {
+            name: String,
+            reference: String,
+        },
+    ],
+    last_connection: Date,
 
 });
 

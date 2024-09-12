@@ -14,6 +14,9 @@
       {{message}}
     </div>
     {{/if}}
+    <div id="error-login" style="display: none;" class="bg-red-500 text-white p-4 mb-4 rounded-md">
+      
+    </div>
     <form id="login-form">
       <div class="mb-4">
         <label class="block text-sm font-medium text-gray-700">Username</label>
@@ -29,5 +32,8 @@
       
     </form>
     <a href="/login/githubcallback" class="mt-4 block bg-gray-800 text-white py-2 px-4 rounded-md text-center hover:bg-gray-900 focus:outline-none focus:ring focus:ring-gray-600">Log in with Github!</a>  <span class="inline-block mr-2"></span>
+    <a href="/login/forgot-password" type="submit" class="w-full py-2 px-4 text-blue hover:text-blue focus:outline-none focus:ring focus:ring-blue-300">
+        Forgot your password?
+      </a>
     
     

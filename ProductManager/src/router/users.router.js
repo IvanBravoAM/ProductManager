@@ -1,39 +1,46 @@
 import {Router} from 'express';
-import { userModel } from '../models/user.model.js';
-import { utilInstance } from '../utils.js';
-import { cartModel } from '../models/cart.model.js';
+import userController from '../controllers/user.controller.js';
+import uploader from '../utils/uploader.js';
+import {utilInstance} from "../utils.js";
+
 
 const userRouter = Router();
 
 userRouter.get("/",async (req, res)=>{
-    try{
-        let users = await userModel.find()
-        res.send({status:'sucess', payload:users});
-    }
-    catch(error){
-        console.log('cannot get users');
-    }
-    
+    const result = await userController.getUsers(req, res);
+});
+
+userRouter.get("/admin-panel",async (req, res)=>{
+    const result = await userController.getAdmin(req, res);
+});
+
+userRouter.get("/clean", async(req, res) => {
+    const result = await userController.deleteInactiveUsers(req, res);
+})
+
+userRouter.get("/:uid", utilInstance.sessionValidation, async (req, res)=>{
+    const user = await userController.getUserEdit(req, res);
+});
+
+userRouter.get("/upload",async (req, res)=>{
+    const user = await userController.getUserUpload(req, res);
+});
+
+userRouter.put("/:uid", async (req,res)=>{
+    const response = await userController.updateUser(req,res);
+});
+
+userRouter.delete("/:uid", async (req,res)=>{
+    const response = await userController.deleteUser(req,res);
+});
+
+userRouter.post("/documents/:uid", uploader.single('document'), async (req, res) => {
+    const user = await userController.getUserUpload(req, res);
+    //res.send('Documento cargado con éxito');
 });
 
 userRouter.post("/", async(req, res)=>{
-    let {first_name, last_name, email, password, age} = req.body;
-
-    if(!first_name || !last_name || !email || !password || !age) return res.send({status:'error', error:'incomplete values'});
-    const cart = new cartModel({
-        products: [],
-    });
-    let cartResult = await cartModel.create();
-    let result = await userModel.create({
-        first_name,
-        last_name,
-        email,
-        password: utilInstance.createHash(password),
-        age:age,
-        cart: cartResult.id
-    });
-    res.send({status:'success', payload:result});
+    const result = await userController.addUser(req, res);
 })
-
 
 export default userRouter;

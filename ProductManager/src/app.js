@@ -9,26 +9,30 @@ import  {Server} from "socket.io"
 import { ProductManager } from "./ProductManager.js";
 const productManager = new ProductManager("src/products.json");
 import userRouter from './router/users.router.js';
+import mockRouter from './router/mock.router.js';
 import messageRouter from './router/message.router.js';
+import ticketRouter from './router/ticket.router.js';
 import mongoose from 'mongoose';
 import morganBody from 'morgan-body';
 import MongoStore from "connect-mongo";
 import session from "express-session";
-import * as dotenv from 'dotenv';
+
 import loginRouter from './router/login.router.js';
 import sessionRouter from './router/session.router.js';
 import { messageModel } from '../src/models/message.model.js';
-dotenv.config();
+
 const app = express();
 const httpServer = createServer(app);
-const MONGO_URL = process.env.MONGO_URL;
-console.log('mongo urlk: ${process.env.MONGO_URL}');
-const PORT = /*process.env.PORT || 3000;*/ 8080;
-const MONGO_HARD = 'mongodb+srv://ivanbravo2201:bwOeW7Da8fBCqBE9@coderdb.dvyqzjc.mongodb.net/?retryWrites=true&w=majority';
 import passport from 'passport';
 import initializePassport from './config/passport.config.js';
+import config from "./config/config.js";
+import errorHandler from "./middleware/errors/index.js";
+import { addLogger, devLogger, prodLogger } from "./utils/logger.js";
+import logRouter from './router/log.router.js';
+import swaggerJsdoc from "swagger-jsdoc";
+import swaggerUiExpress from "swagger-ui-express";
 
-mongoose.connect(MONGO_HARD);
+mongoose.connect(config.MONGO_URL);
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
@@ -43,21 +47,42 @@ app.engine("handlebars", engine({
 app.set("view engine", "handlebars");
 app.set("views", "src/views" );
 
-app.use(express.static("public"));
+const publicPath = "./public";
+//app.use('/public', express.static(publicPath));
+app.use(express.static(publicPath));
+//SwaggerOptions
+const SwaggerOptions = {
+  definition: {
+    openapi: "3.0.1",
+    info: {
+      title: "Inventory App Docs",
+      description: "Documentacion sobre las rutas de la app usando Swagger PD: Lei mal pense que iban las rutas de session tambien",
+    },
+  },
+  apis: [`./src/docs/**/*.yaml`],
+};
+
+//conectamos Swagger
+const specs = swaggerJsdoc(SwaggerOptions);
+
+//Rutas express
+app.use("/apidocs", swaggerUiExpress.serve, swaggerUiExpress.setup(specs));
+
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+//app.use(addLogger);
 
 //SESSION
 app.use(
     session({
       store: MongoStore.create({
-        mongoUrl: MONGO_HARD,
+        mongoUrl: config.MONGO_URL,
         mongoOptions: {
           useNewUrlParser: true,
           useUnifiedTopology: true,
         },
-        ttl: 30,
+        ttl: 300,
       }),
       secret: "codersecret",
       resave: false,
@@ -65,7 +90,6 @@ app.use(
     })
   );
 //SESSION
-
 initializePassport();
 app.use(passport.initialize());
 app.use(passport.session());
@@ -73,6 +97,8 @@ app.use(passport.session());
 app.use("/api/products", productRouter);
 
 app.use("/api/carts", cartRouter);
+
+app.use("/api/tickets", ticketRouter);
 
 app.use("/view", viewsRouter);
 
@@ -86,20 +112,17 @@ app.use("/api/users", userRouter);
 
 app.use("/chat", messageRouter);
 
-// app.listen(PORT ,() =>{
-//     console.log('SERVER LISTENING ON PORT 8080');
-// }); 
+app.use("/mock", mockRouter);
 
-//io config
+app.use("/loggerTest", logRouter);
 
-
-
+app.use(errorHandler);
 
 
 const socketIO = new Server(httpServer);
 
 socketIO.on('connection', (socket)=>{
-    console.log('new user connected');
+    devLogger.debug('new user connected');
 
     socket.on("addProduct", async (newProduct) => {
         const response = await productManager.addProduct(newProduct);
@@ -108,7 +131,7 @@ socketIO.on('connection', (socket)=>{
 
     socket.on("deleteProduct", async (productID) => {
         const response = await productManager.deleteProductById(productID);
-        console.log("product deleted");
+        devLogger.debug("product deleted");
     });
 
     socket.on("addMessage", async (chat) => {
@@ -117,13 +140,13 @@ socketIO.on('connection', (socket)=>{
             user,
             message
         });
-        console.log('new message '+ result);
+        devLogger.debug('new message '+ result);
         socketIO.emit('newMessage', chat);
     });
 });
 
 morganBody(app);
 // Iniciar el servidor HTTP
-httpServer.listen(PORT, () => {
-    console.log(`Servidor en ejecución en http://localhost:${PORT}`);
+httpServer.listen(config.PORT, () => {
+    devLogger.debug(`Servidor en ejecución en ${config.HOST_NAME}`);
 });
